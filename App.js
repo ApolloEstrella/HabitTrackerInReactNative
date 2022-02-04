@@ -16,11 +16,124 @@ import {
   Radio,
   Content,
   View,
+  Box,
+  Pressable,
+  Avatar,
+  Spacer,
+  SimpleGrid,
+  Column,
+  Flex,
+  Circle,
+  useMediaQuery,
 } from "native-base";
 import React, { useState, useRef, useEffect } from "react";
-import { Image, TouchableOpacity, StyleSheet } from "react-native";
+import { Image, TouchableOpacity, StyleSheet, Dimensions } from "react-native";
 import { Formik, Form, useFormik } from "formik";
+import * as SQLite from "expo-sqlite";
 
+/* var db = SQLite.openDatabase(
+  "My1stdb.db",
+  "1.0",
+  "my first database",
+  2 * 1024 * 1024
+);
+db.transaction(function (tx) {
+  tx.executeSql("CREATE TABLE IF NOT EXISTS foo (id unique, text)");
+  //tx.executeSql('INSERT INTO foo (id, text) VALUES (3, "synergies888")');
+  //tx.executeSql('insert into foo (id, text) values (4, "testme888")');
+  tx.executeSql("SELECT * FROM foo", [], function (tx, results) {
+    var len = results.rows.length,
+      i;
+    for (i = 0; i < len; i++) {
+      alert(results.rows.item(i).text + " Row: " + i);
+    }
+  });
+}); */
+
+/* const db1 = SQLite.openDatabase(
+  "HabitTracker",
+  1,
+  null,
+  null,
+  (e) => {
+    console.log(e);
+  }
+); */
+
+const db = SQLite.openDatabase("e:\\database\\habitTracker.db");
+
+/* db.transaction(function (tx) {
+  tx.executeSql(
+    "CREATE TABLE IF NOT EXISTS foo (id INTEGER PRIMARY KEY AUTOINCREMENT, text TEXT)"
+  );
+  tx.executeSql('INSERT INTO foo (text) VALUES ("synergies")');
+  tx.executeSql('insert into foo (text) values ( "testme")');
+  tx.executeSql('INSERT INTO foo (text) VALUES ( "8888")');
+  tx.executeSql('insert into foo (text) values ( "77777")');
+  tx.executeSql("SELECT * FROM foo", [], function (tx, results) {
+    var len = results.rows.length,
+      i;
+    for (i = 0; i < len; i++) {
+      // alert(results.rows.item(i).text + " Row: " + i);
+    }
+  });
+}); */
+
+deviceWidth = Dimensions.get("window").width;
+deviceHeight = Dimensions.get("window").height;
+
+//Create a database
+/* db.transaction(
+  (tx) => {
+    tx.executeSql(
+      'CREATE TABLE items (id INTEGER PRIMARY KEY AUTOINCREMENT, text TEXT, count INT)'
+    );
+  },
+  (error) => {
+    console.log(error);
+   },
+   (success) => {
+    console.log('success');
+  } 
+); */
+
+/* const dbPath = "/database/"
+const dbName = "HabitTracker.db"
+
+let db = SQLite.openDatabase(dbPath + dbName,
+  null,
+  null,
+  null,
+  (e) => {
+    console.log();
+  }
+); 
+
+function err(a) {
+
+  alert('err')
+} 
+
+function success(a) {
+  alert("success");
+}; 
+
+function query2() {
+  const q = 'CREATE TABLE contacts (contact_id INTEGER PRIMARY KEY,first_name TEXT NOT NULL,last_name TEXT NOT NULL,email TEXT NOT NULL UNIQUE,phone TEXT NOT NULL UNIQUE'
+  return q
+}
+
+const r = 'CREATE TABLE contacts (contact_id INTEGER PRIMARY KEY,first_name TEXT NOT NULL,last_name TEXT NOT NULL,email TEXT NOT NULL UNIQUE,phone TEXT NOT NULL UNIQUE'
+
+*/
+
+//const query = 'INSERT INTO TestTable (id, data) VALUES (1, "abc")';
+//    //"CREATE TABLE IF NOT EXISTS items (id INTEGER PRIMARY KEY AUTOINCREMENT, text TEXT, count INT)";
+
+// Check if the items table exists if not create it
+// db.transaction(r, err, success)
+
+//db.exec()
 
 var counter = 1;
 var goalCounter = 1;
@@ -45,7 +158,6 @@ const App = () => {
     return errors;
   }
 
-  
   function onSubmit(values) {
     //alert('submit')
     //console.log("submitting with ", data.formOfMeasurer.current);
@@ -54,15 +166,49 @@ const App = () => {
     //formOfMeasure.current = "1";
     //habitName = "55555"
     //submitSuccessful.current = true;
-    formikProps.setFieldValue("habitName", "")
+    formikProps.setFieldValue("habitName", "");
     formikProps.setFieldValue("recurrence", "1");
     formikProps.setFieldValue("formOfMeasurement", "1");
     formikProps.setFieldValue("goal", "1");
+
+    const insertSql =
+      "INSERT INTO habit(habitName,recurrence,formOfMeasurement,goal) VALUES ('" +
+      values.habitName +
+      "'," +
+      values.recurrence +
+      "," +
+      values.formOfMeasurement +
+      "," +
+      values.goal +
+      ")";
+
+      db.transaction(function (tx) {
+        tx.executeSql(
+          "CREATE TABLE IF NOT EXISTS habit (id INTEGER PRIMARY KEY AUTOINCREMENT, habitName TEXT, recurrence INTEGER, formOfMeasurement INTEGER, goal INTEGER)"
+        ),
+          tx.executeSql(
+            insertSql,
+            [],
+            function (tx, res) {
+              var id = res.insertId;
+            }
+          ),
+        tx.executeSql("SELECT * FROM habit", [], function (tx, results) {
+            var len = results.rows.length,
+              i;
+            for (i = 0; i < len; i++) {
+              alert(results.rows.item(i).habitName + " Row: " + i);
+            }
+          }) 
+      });
+    
+    
+
     counter = 1;
     goalCounter = 1;
     formikProps.setFieldValue("habits", [
-         ...formikProps.values.habits,
-         createHabit(values.habitName),
+      ...formikProps.values.habits,
+      createHabit(values.habitName, values.recurrence),
     ]);
     setSubmitSuccessful(true);
     setShowModal(false);
@@ -96,14 +242,13 @@ const App = () => {
     setShowModal(false);
   };
 
-  const createHabit = (habitName) => ({
+  const createHabit = (habitName, recurrence) => ({
+    recurrence: recurrence,
     text: habitName,
   });
 
-  
-
   return (
-    <VStack width="80%" space={4} style={{ marginTop: 100 }}>
+    <VStack space={4} style={{ marginTop: 100, width: "100%" }}>
       <Button onPress={() => setShowModal(true)}>New Habit</Button>
 
       <Modal
@@ -111,8 +256,9 @@ const App = () => {
         onClose={() => setShowModal(false)}
         closeOnOverlayClick={false}
         avoidKeyboard={true}
+        style={{ width: "100%", alignSelf: "center" }}
       >
-        <Modal.Content maxWidth="400px">
+        <Modal.Content style={{ width: "83%" }}>
           <Modal.Header backgroundColor="#ADD8E6">
             <Text color="#FFFFFF">Add a habit</Text>
           </Modal.Header>
@@ -135,12 +281,13 @@ const App = () => {
               </FormControl.ErrorMessage>
             </FormControl>
             <Divider my={2} />
-            <Stack space={3} style={{ paddingTop: 0 }}>
-              <Text>Recurrence</Text>
+
+            <FormControl>
+              <FormControl.Label>Recurrence</FormControl.Label>
               <HStack space={3}>
                 <Input
                   onBlur={formikProps.handleBlur("recurrence")}
-                  placeholder=""
+                  placeholder="recurrence"
                   onChangeText={formikProps.handleChange("recurrence")}
                   value={formikProps.values.recurrence}
                   width={10}
@@ -149,6 +296,9 @@ const App = () => {
                   isReadOnly={true}
                 />
                 <Text>day/s</Text>
+                <FormControl.ErrorMessage>
+                  {formikProps.errors.recurrence}
+                </FormControl.ErrorMessage>
                 <TouchableOpacity
                   onPress={() => {
                     counter == 1 ? 1 : counter--;
@@ -160,7 +310,7 @@ const App = () => {
                     style={{
                       width: 30,
                       height: 30,
-                      marginLeft: 80,
+                      //marginLeft: 80,
                       //marginTop: 80
                     }}
                   />
@@ -176,17 +326,18 @@ const App = () => {
                     style={{
                       width: 30,
                       height: 30,
-                      marginLeft: 15,
+                      //marginLeft: 15,
                       //marginTop: -30,
                     }}
                   />
                 </TouchableOpacity>
               </HStack>
-            </Stack>
+            </FormControl>
+
             <Divider my={2} />
-            <Stack space={3} style={{ paddingTop: 0 }}>
-              <Text>Form of measurement</Text>
-              <HStack space={3} style={{ marginTop: -15 }}>
+            <FormControl>
+              <FormControl.Label>Form of measurement</FormControl.Label>
+              <HStack space={3}>
                 <Radio.Group
                   //name="formOfMeasurement"
                   //defaultValue={formOfMeasure.current}
@@ -194,7 +345,7 @@ const App = () => {
                   //value={formOfMeasure.current}
                   //onChange={(nextValue) => {
                   //  formOfMeasure.current = nextValue;
-                    //alert(formOfMeasure.current);
+                  //alert(formOfMeasure.current);
                   //}}
                   defaultValue="1"
                 >
@@ -235,15 +386,15 @@ const App = () => {
                   </Stack>
                 </Radio.Group>
               </HStack>
-            </Stack>
+            </FormControl>
 
             <Divider my={2} />
-            <Stack space={3} style={{ paddingTop: 0 }}>
-              <Text>Goal</Text>
+            <FormControl>
+              <FormControl.Label>Goal</FormControl.Label>
               <HStack space={3}>
                 <Input
                   onBlur={formikProps.handleBlur("goal")}
-                  placeholder=""
+                  placeholder="goal"
                   onChangeText={formikProps.handleChange("goal")}
                   value={formikProps.values.goal}
                   width={10}
@@ -263,7 +414,7 @@ const App = () => {
                     style={{
                       width: 30,
                       height: 30,
-                      marginLeft: 80,
+                      //marginLeft: 80,
                       //marginTop: 80
                     }}
                   />
@@ -279,18 +430,19 @@ const App = () => {
                     style={{
                       width: 30,
                       height: 30,
-                      marginLeft: 15,
+                      //marginLeft: 15,
                       //marginTop: -30,
                     }}
                   />
                 </TouchableOpacity>
               </HStack>
-            </Stack>
+            </FormControl>
 
             <Divider my={2} />
-            <Button
-              onPress={formikProps.handleSubmit}
-              /* onPress={() => {
+            <HStack style={{ alignSelf: "center" }}>
+              <Button
+                onPress={formikProps.handleSubmit}
+                /* onPress={() => {
                 
                  setFieldValue("habits", [
                       ...values.habits,
@@ -309,54 +461,104 @@ const App = () => {
                   setShowModal(false);
                 }
               }}*/
-              colorScheme="green"
-              width={125}
-              height={10}
-              style={{ marginTop: 15 }}
-            >
-              Done
-            </Button>
-            <Button
-              onPress={handleClose}
-              colorScheme="red"
-              width={125}
-              height={10}
-              style={{ marginTop: -40, marginLeft: 150 }}
-            >
-              Cancel
-            </Button>
+                colorScheme="green"
+                width={125}
+                height={10}
+                style={{ marginRight: 10 }}
+              >
+                Done
+              </Button>
+              <Button
+                onPress={handleClose}
+                colorScheme="red"
+                width={125}
+                height={10}
+                // style={{ marginTop: -40, marginLeft: 150 }}
+              >
+                Cancel
+              </Button>
+            </HStack>
           </Modal.Body>
           <Modal.Footer></Modal.Footer>
         </Modal.Content>
       </Modal>
 
       <ScrollView showsVerticalScrollIndicator={true}>
-        {formikProps.values.habits.map(({ text }, index) => (
+        {formikProps.values.habits.map(({ text, recurrence }, index) => (
           <View
             key={index}
-            style={{
-              //width: width * 0.9,
-              display: "flex",
-              flexDirection: "row",
-              flexWrap: "wrap",
-              alignContent: "flex-end",
-              alignItems: "center",
-              justifyContent: "flex-end",
-              borderBottomColor: "#6E5BAA",
-              borderBottomWidth: 1,
-              width: "100%",
-              paddingTop: 10,
-              paddingBottom: 10,
-            }}
+            style={{ alignSelf: "center" }}
+            //style={{
+            //width: width * 0.9,
+            // display: "flex",
+            // flexDirection: "row",
+            // flexWrap: "wrap",
+            //alignContent: "flex-end",
+            //alignItems: "center",
+            // justifyContent: "flex-end",
+            // borderBottomColor: "#6E5BAA",
+            // borderBottomWidth: 1,
+            // width: "100%",
+            // paddingTop: 10,
+            // paddingBottom: 10,
+            //}}
           >
-            <Text style={styles.itemDescription} >{text}</Text>
-
-            <TouchableOpacity onPress={() => alert("fdfd")}>
-              <Image
-                source={require("./assets/settings.jpg")}
-                style={{ width: 45, height: 45, marginRight: 10 }}
-              />
-            </TouchableOpacity>
+            <Flex direction="row">
+              <Center
+                size={16}
+                bg="primary.100"
+                _text={{
+                  color: "gray.800",
+                }}
+                style={{ width: "15%" }}
+              >
+                <Circle size={50} bg="secondary.400">
+                  {recurrence}
+                </Circle>
+              </Center>
+              <Center
+                style={{ width: "70%" }}
+                size={16}
+                bg="primary.200"
+                _text={{
+                  color: "orange",
+                }}
+                //rounded="xl"
+                //w={[215, 135, 67.5]}
+                //h={24}
+                //h={23}
+              >
+                <Text style={{ color: "green", fontSize: 18 }}>
+                  {text}
+                  <Text
+                    style={{
+                      color: "black",
+                      fontSize: 12,
+                      fontWeight: "normal",
+                      textAlign: "center",
+                    }}
+                  >
+                    {"\n"} Goal: 3 time/s
+                  </Text>
+                </Text>
+              </Center>
+              <Center
+                bg="primary.300"
+                size={16}
+                _text={{
+                  color: "white",
+                }}
+                style={{ width: "15%" }}
+              >
+                <TouchableOpacity onPress={() => alert("fdfd")}>
+                  <Image
+                    source={require("./assets/edit.png")}
+                    style={{ width: 30, height: 30 }}
+                  />
+                </TouchableOpacity>
+              </Center>
+            </Flex>
+            <Divider my="1" />
           </View>
 
           // <TextInput
@@ -372,13 +574,25 @@ const App = () => {
   );
 };
 
-const Main = () => {
+/* const Main = () => {
   return (
     <NativeBaseProvider>
-      <App />
+      <Center>
+        <App />
+      </Center>
     </NativeBaseProvider>
   );
-};
+}; */
+
+function Main() {
+  return (
+    <NativeBaseProvider>
+      <Center>
+        <App />
+      </Center>
+    </NativeBaseProvider>
+  );
+}
 
 export default () => {
   return (
@@ -389,6 +603,16 @@ export default () => {
     </NativeBaseProvider>
   );
 };
+
+/* export default () => {
+  return (
+    <NativeBaseProvider>
+      <Center flex={1} px="3">
+        <Main />
+      </Center>
+    </NativeBaseProvider>
+  );
+}; */
 
 const styles = StyleSheet.create({
   row: {
@@ -415,6 +639,6 @@ const styles = StyleSheet.create({
     flex: 1,
     textAlign: "left",
     marginLeft: 10,
-    fontSize: 20
+    fontSize: 20,
   },
 });
