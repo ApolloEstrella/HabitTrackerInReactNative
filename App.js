@@ -12,7 +12,7 @@ import {
   Icon,
   Heading,
   Stack,
-  ScrollView,
+  //ScrollView,
   Radio,
   Content,
   View,
@@ -26,8 +26,14 @@ import {
   Circle,
   useMediaQuery,
 } from "native-base";
-import React, { useState, useRef, useEffect } from "react";
-import { Image, TouchableOpacity, StyleSheet, Dimensions } from "react-native";
+import React, { useState, useRef, useEffect, useReducer } from "react";
+import {
+  Image,
+  TouchableOpacity,
+  StyleSheet,
+  Dimensions,
+  ScrollView,
+} from "react-native";
 import { Formik, Form, useFormik } from "formik";
 import * as SQLite from "expo-sqlite";
 
@@ -59,8 +65,6 @@ db.transaction(function (tx) {
     console.log(e);
   }
 ); */
-
-const db = SQLite.openDatabase("e:\\database\\habitTracker.db");
 
 /* db.transaction(function (tx) {
   tx.executeSql(
@@ -134,7 +138,7 @@ const r = 'CREATE TABLE contacts (contact_id INTEGER PRIMARY KEY,first_name TEXT
 // db.transaction(r, err, success)
 
 //db.exec()
-
+const db = SQLite.openDatabase("e:\\database\\habitTracker.db");
 var counter = 1;
 var goalCounter = 1;
 const App = () => {
@@ -182,11 +186,25 @@ const App = () => {
       values.goal +
       ")";
 
-      db.transaction(function (tx) {
-        tx.executeSql(
-          "CREATE TABLE IF NOT EXISTS habit (id INTEGER PRIMARY KEY AUTOINCREMENT, habitName TEXT, recurrence INTEGER, formOfMeasurement INTEGER, goal INTEGER)"
-        ),
-          tx.executeSql(
+    //const db = SQLite.openDatabase("e:\\database\\habitTracker.db");
+
+    /* db.transaction(function (tx) {
+      tx.executeSql(
+        "CREATE TABLE IF NOT EXISTS habit (id INTEGER PRIMARY KEY AUTOINCREMENT, habitName TEXT, recurrence INTEGER, formOfMeasurement INTEGER, goal INTEGER)"
+      );
+    }), */
+
+    /* db.transaction(function (tx) {
+        tx.executeSql("SELECT * FROM habit", [], function (tx, results) {
+        })
+      }) */
+
+    /* db.transaction(function (tx) {
+      tx.executeSql(
+        "CREATE TABLE IF NOT EXISTS habit (id INTEGER PRIMARY KEY AUTOINCREMENT, habitName TEXT, recurrence INTEGER, formOfMeasurement INTEGER, goal INTEGER)"
+      );
+    }),
+              tx.executeSql(
             insertSql,
             [],
             function (tx, res) {
@@ -197,12 +215,26 @@ const App = () => {
             var len = results.rows.length,
               i;
             for (i = 0; i < len; i++) {
-              alert(results.rows.item(i).habitName + " Row: " + i);
+              //alert(results.rows.item(i).habitName + " Row: " + i);
             }
           }) 
-      });
-    
-    
+      }); */
+
+    db.transaction(function (tx) {
+      tx.executeSql(
+        "CREATE TABLE IF NOT EXISTS habit (id INTEGER PRIMARY KEY AUTOINCREMENT, habitName TEXT, recurrence INTEGER, formOfMeasurement INTEGER, goal INTEGER)"
+      ),
+        tx.executeSql(
+          insertSql,
+          [],
+          function (tx, results) {
+            console.log("success");
+          },
+          function (e) {
+            console.log("error");
+          }
+        );
+    });
 
     counter = 1;
     goalCounter = 1;
@@ -210,14 +242,19 @@ const App = () => {
       ...formikProps.values.habits,
       createHabit(values.habitName, values.recurrence),
     ]);
+
     setSubmitSuccessful(true);
     setShowModal(false);
   }
+
+  const [showList, setShowList] = useState(false);
 
   const [showModal, setShowModal] = useState(false);
   //const [recurrences, setRecurrence] = useState("0")
 
   const [submitSuccessful, setSubmitSuccessful] = useState(false);
+
+  const [rowCount, setRowCount] = useState(0);
 
   const formOfMeasure = useRef("1");
   //var habitName = ""
@@ -225,10 +262,6 @@ const App = () => {
   const formikRef = useRef();
 
   //const submitSuccessful = useRef(false)
-
-  //useEffect(() => {
-  //  alert('useeffect')
-  //}, [submitSuccessful]);
 
   const handleClose = () => {
     formikProps.resetForm();
@@ -247,202 +280,241 @@ const App = () => {
     text: habitName,
   });
 
+  const useForceRender = () => {
+    const [, forceRender] = useReducer((x) => !x, true);
+    return forceRender;
+  };
+
+  const forceRender = useForceRender();
+  useEffect(() => {
+    db.transaction(function (tx) {
+      tx.executeSql("SELECT * FROM habit", [], function (tx, results) {
+        const len = results.rows.length;
+        //formikProps.values.habits.push({ text: "asd asdf232 3asdfdff", recurrence: 3 })
+
+        for (i = 0; i < len; i++) {
+          formikProps.values.habits.push({
+            text: results.rows.item(i).habitName,
+            recurrence: results.rows.item(i).recurrence,
+          });
+          /*formikProps.setFieldValue("habits", [
+             ...formikProps.values.habits,
+             createHabit("values.habitName", 7),
+           ]);*/
+        }
+        forceRender();
+      }),
+        function (e) {
+          alert("error effect");
+        };
+    });
+  }, []);
+
   return (
-    <VStack space={4} style={{ marginTop: 100, width: "100%" }}>
-      <Button onPress={() => setShowModal(true)}>New Habit</Button>
+    <>
+      <Button onPress={() => setShowModal(true)} style={{ marginTop: 150 }}>
+        New Habit
+      </Button>
 
-      <Modal
-        isOpen={showModal}
-        onClose={() => setShowModal(false)}
-        closeOnOverlayClick={false}
-        avoidKeyboard={true}
-        style={{ width: "100%", alignSelf: "center" }}
-      >
-        <Modal.Content style={{ width: "83%" }}>
-          <Modal.Header backgroundColor="#ADD8E6">
-            <Text color="#FFFFFF">Add a habit</Text>
-          </Modal.Header>
-          <Modal.Body>
-            <FormControl
-              isRequired
-              isInvalid={"habitName" in formikProps.errors}
-            >
-              <FormControl.Label>Name of habit</FormControl.Label>
-              {console.log("errors", formikProps.errors)}
-              <Input
-                onBlur={formikProps.handleBlur("habitName")}
-                placeholder="Habit"
-                onChangeText={formikProps.handleChange("habitName")}
-                value={formikProps.values.habitName}
-                fontSize={15}
-              />
-              <FormControl.ErrorMessage>
-                {formikProps.errors.habitName}
-              </FormControl.ErrorMessage>
-            </FormControl>
-            <Divider my={2} />
-
-            <FormControl>
-              <FormControl.Label>Recurrence</FormControl.Label>
-              <HStack space={3}>
+      <VStack space={4} style={{ marginTop: 0, width: "100%" }}>
+        <Modal
+          isOpen={showModal}
+          onClose={() => setShowModal(false)}
+          closeOnOverlayClick={false}
+          avoidKeyboard={true}
+          style={{ width: "100%", alignSelf: "center" }}
+        >
+          <Modal.Content style={{ width: "83%" }}>
+            <Modal.Header backgroundColor="#ADD8E6">
+              <Text color="#FFFFFF">Add a habit</Text>
+            </Modal.Header>
+            <Modal.Body>
+              <FormControl
+                isRequired
+                isInvalid={"habitName" in formikProps.errors}
+              >
+                <FormControl.Label>Name of habit</FormControl.Label>
+                {console.log("errors", formikProps.errors)}
                 <Input
-                  onBlur={formikProps.handleBlur("recurrence")}
-                  placeholder="recurrence"
-                  onChangeText={formikProps.handleChange("recurrence")}
-                  value={formikProps.values.recurrence}
-                  width={10}
+                  onBlur={formikProps.handleBlur("habitName")}
+                  placeholder="Habit"
+                  onChangeText={formikProps.handleChange("habitName")}
+                  value={formikProps.values.habitName}
                   fontSize={15}
-                  height={9}
-                  isReadOnly={true}
                 />
-                <Text>day/s</Text>
                 <FormControl.ErrorMessage>
-                  {formikProps.errors.recurrence}
+                  {formikProps.errors.habitName}
                 </FormControl.ErrorMessage>
-                <TouchableOpacity
-                  onPress={() => {
-                    counter == 1 ? 1 : counter--;
-                    formikProps.setFieldValue("recurrence", counter.toString());
-                  }}
-                >
-                  <Image
-                    source={require("./assets/minus.png")}
-                    style={{
-                      width: 30,
-                      height: 30,
-                      //marginLeft: 80,
-                      //marginTop: 80
-                    }}
-                  />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => {
-                    counter++;
-                    formikProps.setFieldValue("recurrence", counter.toString());
-                  }}
-                >
-                  <Image
-                    source={require("./assets/plus.png")}
-                    style={{
-                      width: 30,
-                      height: 30,
-                      //marginLeft: 15,
-                      //marginTop: -30,
-                    }}
-                  />
-                </TouchableOpacity>
-              </HStack>
-            </FormControl>
+              </FormControl>
+              <Divider my={2} />
 
-            <Divider my={2} />
-            <FormControl>
-              <FormControl.Label>Form of measurement</FormControl.Label>
-              <HStack space={3}>
-                <Radio.Group
-                  //name="formOfMeasurement"
-                  //defaultValue={formOfMeasure.current}
-                  //accessibilityLabel="pick a size"
-                  //value={formOfMeasure.current}
-                  //onChange={(nextValue) => {
-                  //  formOfMeasure.current = nextValue;
-                  //alert(formOfMeasure.current);
-                  //}}
-                  defaultValue="1"
-                >
-                  <Stack
-                    direction={{
-                      base: "row",
-                      sm: "row",
+              <FormControl>
+                <FormControl.Label>Recurrence</FormControl.Label>
+                <HStack space={3}>
+                  <Input
+                    onBlur={formikProps.handleBlur("recurrence")}
+                    placeholder="recurrence"
+                    onChangeText={formikProps.handleChange("recurrence")}
+                    value={formikProps.values.recurrence}
+                    width={10}
+                    fontSize={15}
+                    height={9}
+                    isReadOnly={true}
+                  />
+                  <Text>day/s</Text>
+                  <FormControl.ErrorMessage>
+                    {formikProps.errors.recurrence}
+                  </FormControl.ErrorMessage>
+                  <TouchableOpacity
+                    onPress={() => {
+                      counter == 1 ? 1 : counter--;
+                      formikProps.setFieldValue(
+                        "recurrence",
+                        counter.toString()
+                      );
                     }}
-                    alignItems="center"
-                    space={4}
-                    w="75%"
-                    maxW="300px"
                   >
-                    <Radio
-                      value="1"
-                      colorScheme="green"
-                      size="sm"
-                      my={1}
-                      onChange={formikProps.handleChange}
-                      name="formOfMeasurement"
-                      //onBlur={handleBlur("formOfMeasurement")}
-                      //onPress={setFieldValue("formOfMeasurement", "1")}
-                    >
-                      Increment
-                    </Radio>
-                    <Radio
-                      value="2"
-                      colorScheme="green"
-                      size="sm"
-                      my={1}
-                      onChange={formikProps.handleChange}
-                      name="formOfMeasurement"
-                      //onBlur={handleBlur("formOfMeasurement")}
-                      //onPress={setFieldValue("formOfMeasurement", "2")}
-                    >
-                      Timer
-                    </Radio>
-                  </Stack>
-                </Radio.Group>
-              </HStack>
-            </FormControl>
-
-            <Divider my={2} />
-            <FormControl>
-              <FormControl.Label>Goal</FormControl.Label>
-              <HStack space={3}>
-                <Input
-                  onBlur={formikProps.handleBlur("goal")}
-                  placeholder="goal"
-                  onChangeText={formikProps.handleChange("goal")}
-                  value={formikProps.values.goal}
-                  width={10}
-                  fontSize={15}
-                  height={9}
-                  isReadOnly={true}
-                />
-                <Text>time/s</Text>
-                <TouchableOpacity
-                  onPress={() => {
-                    goalCounter == 1 ? 1 : goalCounter--;
-                    formikProps.setFieldValue("goal", goalCounter.toString());
-                  }}
-                >
-                  <Image
-                    source={require("./assets/minus.png")}
-                    style={{
-                      width: 30,
-                      height: 30,
-                      //marginLeft: 80,
-                      //marginTop: 80
+                    <Image
+                      source={require("./assets/minus.png")}
+                      style={{
+                        width: 30,
+                        height: 30,
+                        //marginLeft: 80,
+                        //marginTop: 80
+                      }}
+                    />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => {
+                      counter++;
+                      formikProps.setFieldValue(
+                        "recurrence",
+                        counter.toString()
+                      );
                     }}
-                  />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => {
-                    goalCounter++;
-                    formikProps.setFieldValue("goal", goalCounter.toString());
-                  }}
-                >
-                  <Image
-                    source={require("./assets/plus.png")}
-                    style={{
-                      width: 30,
-                      height: 30,
-                      //marginLeft: 15,
-                      //marginTop: -30,
-                    }}
-                  />
-                </TouchableOpacity>
-              </HStack>
-            </FormControl>
+                  >
+                    <Image
+                      source={require("./assets/plus.png")}
+                      style={{
+                        width: 30,
+                        height: 30,
+                        //marginLeft: 15,
+                        //marginTop: -30,
+                      }}
+                    />
+                  </TouchableOpacity>
+                </HStack>
+              </FormControl>
 
-            <Divider my={2} />
-            <HStack style={{ alignSelf: "center" }}>
-              <Button
-                onPress={formikProps.handleSubmit}
-                /* onPress={() => {
+              <Divider my={2} />
+              <FormControl>
+                <FormControl.Label>Form of measurement</FormControl.Label>
+                <HStack space={3}>
+                  <Radio.Group
+                    //name="formOfMeasurement"
+                    //defaultValue={formOfMeasure.current}
+                    //accessibilityLabel="pick a size"
+                    //value={formOfMeasure.current}
+                    //onChange={(nextValue) => {
+                    //  formOfMeasure.current = nextValue;
+                    //alert(formOfMeasure.current);
+                    //}}
+                    defaultValue="1"
+                  >
+                    <Stack
+                      direction={{
+                        base: "row",
+                        sm: "row",
+                      }}
+                      alignItems="center"
+                      space={4}
+                      w="75%"
+                      maxW="300px"
+                    >
+                      <Radio
+                        value="1"
+                        colorScheme="green"
+                        size="sm"
+                        my={1}
+                        onChange={formikProps.handleChange}
+                        name="formOfMeasurement"
+                        //onBlur={handleBlur("formOfMeasurement")}
+                        //onPress={setFieldValue("formOfMeasurement", "1")}
+                      >
+                        Increment
+                      </Radio>
+                      <Radio
+                        value="2"
+                        colorScheme="green"
+                        size="sm"
+                        my={1}
+                        onChange={formikProps.handleChange}
+                        name="formOfMeasurement"
+                        //onBlur={handleBlur("formOfMeasurement")}
+                        //onPress={setFieldValue("formOfMeasurement", "2")}
+                      >
+                        Timer
+                      </Radio>
+                    </Stack>
+                  </Radio.Group>
+                </HStack>
+              </FormControl>
+
+              <Divider my={2} />
+              <FormControl>
+                <FormControl.Label>Goal</FormControl.Label>
+                <HStack space={3}>
+                  <Input
+                    onBlur={formikProps.handleBlur("goal")}
+                    placeholder="goal"
+                    onChangeText={formikProps.handleChange("goal")}
+                    value={formikProps.values.goal}
+                    width={10}
+                    fontSize={15}
+                    height={9}
+                    isReadOnly={true}
+                  />
+                  <Text>time/s</Text>
+                  <TouchableOpacity
+                    onPress={() => {
+                      goalCounter == 1 ? 1 : goalCounter--;
+                      formikProps.setFieldValue("goal", goalCounter.toString());
+                    }}
+                  >
+                    <Image
+                      source={require("./assets/minus.png")}
+                      style={{
+                        width: 30,
+                        height: 30,
+                        //marginLeft: 80,
+                        //marginTop: 80
+                      }}
+                    />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => {
+                      goalCounter++;
+                      formikProps.setFieldValue("goal", goalCounter.toString());
+                    }}
+                  >
+                    <Image
+                      source={require("./assets/plus.png")}
+                      style={{
+                        width: 30,
+                        height: 30,
+                        //marginLeft: 15,
+                        //marginTop: -30,
+                      }}
+                    />
+                  </TouchableOpacity>
+                </HStack>
+              </FormControl>
+
+              <Divider my={2} />
+              <HStack style={{ alignSelf: "center" }}>
+                <Button
+                  onPress={formikProps.handleSubmit}
+                  /* onPress={() => {
                 
                  setFieldValue("habits", [
                       ...values.habits,
@@ -461,116 +533,116 @@ const App = () => {
                   setShowModal(false);
                 }
               }}*/
-                colorScheme="green"
-                width={125}
-                height={10}
-                style={{ marginRight: 10 }}
-              >
-                Done
-              </Button>
-              <Button
-                onPress={handleClose}
-                colorScheme="red"
-                width={125}
-                height={10}
-                // style={{ marginTop: -40, marginLeft: 150 }}
-              >
-                Cancel
-              </Button>
-            </HStack>
-          </Modal.Body>
-          <Modal.Footer></Modal.Footer>
-        </Modal.Content>
-      </Modal>
+                  colorScheme="green"
+                  width={125}
+                  height={10}
+                  style={{ marginRight: 10 }}
+                >
+                  Done
+                </Button>
+                <Button
+                  onPress={handleClose}
+                  colorScheme="red"
+                  width={125}
+                  height={10}
+                  // style={{ marginTop: -40, marginLeft: 150 }}
+                >
+                  Cancel
+                </Button>
+              </HStack>
+            </Modal.Body>
+            <Modal.Footer></Modal.Footer>
+          </Modal.Content>
+        </Modal>
 
-      <ScrollView showsVerticalScrollIndicator={true}>
-        {formikProps.values.habits.map(({ text, recurrence }, index) => (
-          <View
-            key={index}
-            style={{ alignSelf: "center" }}
-            //style={{
-            //width: width * 0.9,
-            // display: "flex",
-            // flexDirection: "row",
-            // flexWrap: "wrap",
-            //alignContent: "flex-end",
-            //alignItems: "center",
-            // justifyContent: "flex-end",
-            // borderBottomColor: "#6E5BAA",
-            // borderBottomWidth: 1,
-            // width: "100%",
-            // paddingTop: 10,
-            // paddingBottom: 10,
-            //}}
-          >
-            <Flex direction="row">
-              <Center
-                size={16}
-                bg="primary.100"
-                _text={{
-                  color: "gray.800",
-                }}
-                style={{ width: "15%" }}
-              >
-                <Circle size={50} bg="secondary.400">
-                  {recurrence}
-                </Circle>
-              </Center>
-              <Center
-                style={{ width: "70%" }}
-                size={16}
-                bg="primary.200"
-                _text={{
-                  color: "orange",
-                }}
-                //rounded="xl"
-                //w={[215, 135, 67.5]}
-                //h={24}
-                //h={23}
-              >
-                <Text style={{ color: "green", fontSize: 18 }}>
-                  {text}
-                  <Text
-                    style={{
-                      color: "black",
-                      fontSize: 12,
-                      fontWeight: "normal",
-                      textAlign: "center",
-                    }}
-                  >
-                    {"\n"} Goal: 3 time/s
+        <ScrollView style="height:'100%', width:'100%', eeeAASAAAAAAAflex: 1">
+          {formikProps.values.habits.map(({ text, recurrence }, index) => (
+            <View
+              key={index}
+              style={{ alignSelf: "center" }}
+              //style={{
+              //width: width * 0.9,
+              // display: "flex",
+              // flexDirection: "row",
+              // flexWrap: "wrap",
+              //alignContent: "flex-end",
+              //alignItems: "center",
+              // justifyContent: "flex-end",
+              // borderBottomColor: "#6E5BAA",
+              // borderBottomWidth: 1,
+              // width: "100%",
+              // paddingTop: 10,
+              // paddingBottom: 10,
+              //}}
+            >
+              <Flex direction="row">
+                <Center
+                  size={16}
+                  bg="primary.100"
+                  _text={{
+                    color: "gray.800",
+                  }}
+                  style={{ width: "15%" }}
+                >
+                  <Circle size={50} bg="secondary.400">
+                    {recurrence}
+                  </Circle>
+                </Center>
+                <Center
+                  style={{ width: "70%" }}
+                  size={16}
+                  bg="primary.200"
+                  _text={{
+                    color: "orange",
+                  }}
+                  //rounded="xl"
+                  //w={[215, 135, 67.5]}
+                  //h={24}
+                  //h={23}
+                >
+                  <Text style={{ color: "green", fontSize: 18 }}>
+                    {text}
+                    <Text
+                      style={{
+                        color: "black",
+                        fontSize: 12,
+                        fontWeight: "normal",
+                        textAlign: "center",
+                      }}
+                    >
+                      {"\n"} Goal: 3 time/s
+                    </Text>
                   </Text>
-                </Text>
-              </Center>
-              <Center
-                bg="primary.300"
-                size={16}
-                _text={{
-                  color: "white",
-                }}
-                style={{ width: "15%" }}
-              >
-                <TouchableOpacity onPress={() => alert("fdfd")}>
-                  <Image
-                    source={require("./assets/edit.png")}
-                    style={{ width: 30, height: 30 }}
-                  />
-                </TouchableOpacity>
-              </Center>
-            </Flex>
-            <Divider my="1" />
-          </View>
-
-          // <TextInput
-          //   key={index}
-          //   onChangeText={handleChange(`questions[${index}].text`)}
-          //   onBlur={handleBlur(`questions[${index}].text`)}
-          //   value={values.questions[index].text}
-          //   style={styles.corners1}
-          // />
-        ))}
-      </ScrollView>
-    </VStack>
+                </Center>
+                <Center
+                  bg="primary.300"
+                  size={16}
+                  _text={{
+                    color: "white",
+                  }}
+                  style={{ width: "15%" }}
+                >
+                  <TouchableOpacity onPress={() => alert("fdfd")}>
+                    <Image
+                      source={require("./assets/edit.png")}
+                      style={{ width: 30, height: 30 }}
+                    />
+                  </TouchableOpacity>
+                </Center>
+              </Flex>
+              <Divider my="1" />
+            </View>
+            // <TextInput
+            //   key={index}
+            //   onChangeText={handleChange(`questions[${index}].text`)}
+            //   onBlur={handleBlur(`questions[${index}].text`)}
+            //   value={values.questions[index].text}
+            //   style={styles.corners1}
+            // />
+          ))}
+        </ScrollView>
+      </VStack>
+    </>
   );
 };
 
@@ -640,5 +712,16 @@ const styles = StyleSheet.create({
     textAlign: "left",
     marginLeft: 10,
     fontSize: 20,
+  },
+  scrollView: {
+    height: "20%",
+    width: "80%",
+    margin: 20,
+    alignSelf: "center",
+    padding: 20,
+    borderWidth: 5,
+    borderRadius: 5,
+    borderColor: "black",
+    backgroundColor: "lightblue",
   },
 });
