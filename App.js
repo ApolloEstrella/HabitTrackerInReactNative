@@ -156,6 +156,12 @@ const App = () => {
 
   const [settings, setSettings] = useState(false);
   const [measurement, setMeasurement] = useState("1");
+  const useForceRender = () => {
+    const [, forceRender] = useReducer((x) => !x, true);
+    return forceRender;
+  };
+
+  const forceRender = useForceRender();
 
   function validate(values) {
     const errors = {};
@@ -184,6 +190,18 @@ const App = () => {
       "," +
       values.goal +
       ")";
+
+    const updateSql =
+      "UPDATE habit SET habitName = '" +
+      values.habitName +
+      "', recurrence=" +
+      values.recurrence +
+      ",formOfMeasurement=" +
+      values.formOfMeasurement +
+      ",goal=" +
+      values.goal +
+      " WHERE id=" +
+      values.id;
 
     //const db = SQLite.openDatabase("e:\\database\\habitTracker.db");
 
@@ -219,32 +237,70 @@ const App = () => {
           }) 
       }); */
 
-    db.transaction(function (tx) {
-      tx.executeSql(
-        "CREATE TABLE IF NOT EXISTS habit (id INTEGER PRIMARY KEY AUTOINCREMENT, habitName TEXT, recurrence INTEGER, formOfMeasurement INTEGER, goal INTEGER)"
-      ),
+    if (!settings) {
+      db.transaction(function (tx) {
         tx.executeSql(
-          insertSql,
+          "CREATE TABLE IF NOT EXISTS habit (id INTEGER PRIMARY KEY AUTOINCREMENT, habitName TEXT, recurrence INTEGER, formOfMeasurement INTEGER, goal INTEGER)"
+        ),
+          tx.executeSql(
+            insertSql,
+            [],
+            function (tx, results) {
+              var id = results.insertId;
+              formikProps.setFieldValue("habits", [
+                ...formikProps.values.habits,
+                createHabit(
+                  id,
+                  values.habitName,
+                  values.recurrence,
+                  values.formOfMeasurement,
+                  values.goal
+                ),
+              ]);
+              console.log("success");
+            },
+            function (e) {
+              console.log("error");
+            }
+          );
+      });
+    } else {
+      db.transaction(function (tx) {
+        tx.executeSql(
+          updateSql,
           [],
           function (tx, results) {
-            var id = results.insertId;
-            formikProps.setFieldValue("habits", [
-              ...formikProps.values.habits,
-              createHabit(
-                id,
-                values.habitName,
-                values.recurrence,
-                values.formOfMeasurement,
-                values.goal
-              ),
-            ]);
-            console.log("success");
+            const index = formikProps.values.habits.findIndex(
+              (obj) => obj.id === values.id
+            );
+
+            const habit = formikProps.values.habits[index]
+
+            formikProps.values.habits[index].habitName = values.habitName
+            formikProps.values.habits[index].recurrence = values.recurrence
+            formikProps.values.habits[index].formOfMeasurement = values.formOfMeasurement
+            formikProps.values.habits[index].goal = values.goal
+
+            forceRender()
+            //var id = results.insertId;
+            /* formikProps.setFieldValue("habits", [
+                ...formikProps.values.habits,
+                createHabit(
+                  id,
+                  values.habitName,
+                  values.recurrence,
+                  values.formOfMeasurement,
+                  values.goal
+                ), 
+              ]) */ 
+            console.log("successful"); 
           },
           function (e) {
-            console.log("error");
+            console.log("errors");
           }
         );
-    });
+      });
+    }
 
     counter = 1;
     goalCounter = 1;
@@ -336,12 +392,7 @@ const App = () => {
     setShowModal(true);
   };
 
-  const useForceRender = () => {
-    const [, forceRender] = useReducer((x) => !x, true);
-    return forceRender;
-  };
 
-  const forceRender = useForceRender();
   useEffect(() => {
     db.transaction(function (tx) {
       tx.executeSql("SELECT * FROM habit", [], function (tx, results) {
