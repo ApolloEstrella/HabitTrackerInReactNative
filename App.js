@@ -274,14 +274,15 @@ const App = () => {
               (obj) => obj.id === values.id
             );
 
-            const habit = formikProps.values.habits[index]
+            const habit = formikProps.values.habits[index];
 
-            formikProps.values.habits[index].habitName = values.habitName
-            formikProps.values.habits[index].recurrence = values.recurrence
-            formikProps.values.habits[index].formOfMeasurement = values.formOfMeasurement
-            formikProps.values.habits[index].goal = values.goal
+            formikProps.values.habits[index].habitName = values.habitName;
+            formikProps.values.habits[index].recurrence = values.recurrence;
+            formikProps.values.habits[index].formOfMeasurement =
+              values.formOfMeasurement;
+            formikProps.values.habits[index].goal = values.goal;
 
-            forceRender()
+            forceRender();
             //var id = results.insertId;
             /* formikProps.setFieldValue("habits", [
                 ...formikProps.values.habits,
@@ -292,8 +293,8 @@ const App = () => {
                   values.formOfMeasurement,
                   values.goal
                 ), 
-              ]) */ 
-            console.log("successful"); 
+              ]) */
+            console.log("successful");
           },
           function (e) {
             console.log("errors");
@@ -391,7 +392,6 @@ const App = () => {
     setMeasurement("1");
     setShowModal(true);
   };
-
 
   useEffect(() => {
     db.transaction(function (tx) {
@@ -714,7 +714,14 @@ const App = () => {
                       }}
                       style={{ width: "15%" }}
                     >
-                      <Circle size={50} bg="secondary.400">
+                      <Circle
+                        size={50}
+                        style={
+                          recurrence === goal
+                            ? { backgroundColor: "green", color: "white" }
+                            : recurrence < goal ? { backgroundColor: "blue" } : {backgroundColor: "red"}
+                        }
+                      >
                         {recurrence}
                       </Circle>
                     </Center>
@@ -740,7 +747,7 @@ const App = () => {
                             textAlign: "center",
                           }}
                         >
-                          {"\n"} Goal: 3 time/s {id}
+                          {"\n"} Goal: {goal} time/s 
                         </Text>
                       </Text>
                     </Center>
