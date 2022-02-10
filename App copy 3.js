@@ -33,7 +33,6 @@ import {
   StyleSheet,
   Dimensions,
   //ScrollView,
-  Alert,
 } from "react-native";
 import { Formik, Form, useFormik } from "formik";
 import * as SQLite from "expo-sqlite";
@@ -241,7 +240,6 @@ const App = () => {
     if (!settings) {
       db.transaction(function (tx) {
         tx.executeSql(
-          //"DROP TABLE HABIT"
           "CREATE TABLE IF NOT EXISTS habit (id INTEGER PRIMARY KEY AUTOINCREMENT, habitName TEXT, recurrence INTEGER, formOfMeasurement INTEGER, goal INTEGER)"
         ),
           tx.executeSql(
@@ -317,52 +315,29 @@ const App = () => {
   }
 
   const habitDelete = () => {
-    Alert.alert(
-      "Remove Habit",
-      "Do you want to remove this habit permanently and close this window ?",
-      [
-        {
-          text: "No",
-          //onPress: () => console.log("Cancel Pressed"),
-          //style: "cancel",
-        },
-        { text: "Yes", onPress: () => habitDeleteConfirmed() },
-      ]
-    );
-  };
-
-  const habitDeleteConfirmed = () => {
-    setShowModal(false);
-    const deleteSql = "DELETE FROM habit WHERE id=" + habitId;
+    const deleteSql = "DELETE FROM habit WHERE id=" + habitId
     db.transaction(function (tx) {
       tx.executeSql(
         deleteSql,
         [],
         function (tx, results) {
-          if (formikProps.values.habits.length > 0) {
-            const index = formikProps.values.habits.findIndex(
-              (obj) => obj.id === habitId
-            );
-            formikProps.values.habits.splice(index, 1);
-          }
+          delete formikProps.values.habits[habitId - 1];
           //forceRender();
-          /* const index = formikProps.values.habits.findIndex(
+         /* const index = formikProps.values.habits.findIndex(
             (obj) => obj.id === habitId
           );
           delete formikProps.values.habits[index];
           forceRender();*/
-          formikProps.setFieldValue("habitName", "");
-          formikProps.setFieldValue("recurrence", "1");
-          formikProps.setFieldValue("formOfMeasurement", "1");
-          formikProps.setFieldValue("goal", "1");
-          console.log("successful delete");
+          console.log("successful delete"); 
+          setShowModal(false)
         },
         function (e) {
           console.log("errors");
         }
       );
-    });
-  };
+    })
+  }
+
 
   const [showList, setShowList] = useState(false);
 
@@ -382,9 +357,9 @@ const App = () => {
 
   const [edit, setEdit] = useState({});
 
-  var editedValue;
-
   const [habitId, setHabitId] = useState();
+
+  var editedValue;
 
   const loadEdit = (editId) => {
     /* setEdit((edit) => ({
@@ -399,9 +374,7 @@ const App = () => {
     //  lookup[formikProps.values.habits[i].id] = formikProps.values.habits[i];
     //}
 
-    const editedValue = formikProps.values.habits.find(
-      (obj) => obj.id === editId
-    );
+    const editedValue = formikProps.values.habits[editId - 1];
 
     formikProps.setFieldValue("id", editedValue.id);
     formikProps.setFieldValue("recurrence", editedValue.recurrence.toString());
@@ -510,7 +483,9 @@ const App = () => {
                   fontSize={15}
                 />
                 <FormControl.ErrorMessage>
-                  {formikProps.errors.habitName}
+                  {formikProps.errors.habitName && formikProps.touched.habitName
+                    ? formikProps.errors.habitName
+                    : ""}
                 </FormControl.ErrorMessage>
               </FormControl>
               <Divider my={2} />
@@ -684,16 +659,10 @@ const App = () => {
               <Divider my={2} />
               <HStack style={{ alignSelf: "center" }}>
                 <Button
-                  style={
-                    settings === true ? { width: 90 } : { display: "none" }
-                  }
-                  onPress={() => habitDelete()}
-                  colorScheme="red"
-                >
-                  Delete
-                </Button>
-                <Button
                   onPress={formikProps.handleSubmit}
+                  id="doneBtn"
+                  name="doneBtn"
+                  //ref={this.don}
                   /* onPress={() => {
                 
                  setFieldValue("habits", [
@@ -714,24 +683,28 @@ const App = () => {
                 }
               }}*/
                   colorScheme="green"
-                  width={90}
+                  width={125}
                   height={10}
-                  style={{ marginLeft: 15, marginRight: 15 }}
+                  style={{ marginRight: 10 }}
                 >
                   Done
                 </Button>
                 <Button
                   onPress={handleClose}
                   colorScheme="red"
-                  width={90}
+                  width={125}
                   height={10}
-                  //style={{ marginLeft: 300 }}
+                  // style={{ marginTop: -40, marginLeft: 150 }}
                 >
                   Cancel
                 </Button>
               </HStack>
             </Modal.Body>
-            <Modal.Footer></Modal.Footer>
+            <Modal.Footer>
+              <Button style={settings === true ? { marginRight: 140, width: 150 } : { display: "none" }} onPress={habitDelete()}>
+                Delete this habit and close the window.
+              </Button>
+            </Modal.Footer>
           </Modal.Content>
         </Modal>
 
@@ -837,9 +810,9 @@ const App = () => {
                     >
                       <TouchableOpacity
                         onPress={() => {
-                          setHabitId(id);
-                          loadEdit(id);
                           setSettings(true);
+                          setHabitId(id)
+                          loadEdit(id);
                           setShowModal(true);
                         }}
                       >
