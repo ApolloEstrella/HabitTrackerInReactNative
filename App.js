@@ -451,10 +451,9 @@ const App = () => {
     db.transaction(function (tx) {
       tx.executeSql("SELECT * FROM habit", [], function (tx, results) {
         const len = results.rows.length;
-        //formikProps.values.habits.push({ text: "asd asdf232 3asdfdff", recurrence: 3 })
-
+        const habits = formikProps.values.habits;
         for (i = 0; i < len; i++) {
-          formikProps.values.habits.push({
+          habits.push({
             id: results.rows.item(i).id,
             habitName: results.rows.item(i).habitName,
             recurrence: results.rows.item(i).recurrence,
@@ -466,6 +465,9 @@ const App = () => {
              createHabit("values.habitName", 7),
            ]);*/
         }
+        
+        //formikProps.values.habits = habits;
+        formikProps.setFieldValue('habits', habits)
         forceRender();
       }),
         function (e) {
